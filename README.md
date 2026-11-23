@@ -7,7 +7,11 @@
 ## 一键安装
 
 ```bash
-bash <(curl -fsSL [https://raw.githubusercontent.com/zam1238/muse2api-wecom-bot/main/install.sh](https://raw.githubusercontent.com/zam1238/muse2api-wecom-bot/main/install.sh))
+bash <(curl -fsSL https://raw.githubusercontent.com/zam1238/muse2api-wecom-bot/main/install.sh)
+```
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zam1238/muse2api-wecom-bot/main/install.sh -o install.sh && bash install.sh
 ```
 
 安装完成后，在终端直接输入 musewecom 即可进入管理菜单，逐项单独填写以下配置变量：
