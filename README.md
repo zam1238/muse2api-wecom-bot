@@ -15,19 +15,32 @@ curl -fsSL https://raw.githubusercontent.com/zam1238/muse2api-wecom-bot/main/ins
 ```
 
 
-企业微信入口 https://work.weixin.qq.com/
+🔗 企业微信后台配置清单  企业微信入口 https://work.weixin.qq.com/
+[!IMPORTANT]
+以下 3 步为必配项，缺一不可，否则机器人无法收发消息或新成员无法看到应用。
 
-注册企业微信 我的团队 获取CORP_ID=团队 ID（形如 ww...开头的字符串）
-            应用管理-创建应用 获取 AGENT_ID=形如 `1000002
-            同上界面下滑-接收消息启用API  获取TOKEN=随机
-                                EncodingAESKey？=随机
-                                接收消息查看 / 发送 获取Secret 
-    5个数值保存记事本  在VPS一键安装 填好1 2 3 4 5 6 7  监听端口8099  在回到网页企业微信 接收消息API URL填https://IP/wecom   下面数值 在记事本保存填上 保存
-    在自创的应该下方有个企业可信IP填入vps IPv4的IP（不支持ipv6）
-          回到vps快捷命令musewecom 选8 白名单微信 加入
+配置 API 接收回调：
+
+先在服务器 musewecom 面板选 12 启动服务（确保状态为 active）。
+
+进入管理后台 → 应用管理 → 你的自建应用 → 接收消息 → 设置API接收：
+
+URL：http://你的服务器IP:8099/wecom（如已绑域名可填 https://你的域名/wecom）
+
+Token / EncodingAESKey：填入与服务器菜单 6、7 项完全一致的值后点击 保存。
+
+添加企业可信 IP：
+
+在自建应用页面底部找到 企业可信IP → 配置，填入当前运行机器人的服务器公网 IP。
+
+设置应用可见范围 & 放行白名单：
+
+在自建应用详情页点击 可见范围 → 修改，勾选需要使用的成员或整个部门（应用主页保持为空，切勿填写网页地址）。
+
+让成员在工作台点开应用发送一条消息 → 管理员在服务器运行 musewecom 选 14 查看日志里的 WeCom msg from=... → 选 8 将该 ID 加入 ALLOWED_USERS → 选 12 重启生效。          
 
 
-          企业微信鸡肋 生成视频大于10M 就只出下载链接
+企业微信鸡肋 生成视频大于10M 就只出下载链接
             
 
 | 菜单编号 | 参数名 | 说明与示例 | 获取位置 |
