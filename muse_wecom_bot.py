@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import io
 import os
 import re
 import struct
@@ -91,18 +92,41 @@ def wecom_send_text(user_id, text):
     )
 
 
+def _convert_image_for_wecom(file_bytes, filename="image.png"):
+    if file_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image.png", file_bytes, "image/png"
+    if file_bytes.startswith(b"\xff\xd8\xff"):
+        return "image.jpg", file_bytes, "image/jpeg"
+    try:
+        from PIL import Image
+
+        im = Image.open(io.BytesIO(file_bytes))
+        if im.mode not in ("RGB", "RGBA"):
+            im = im.convert("RGBA")
+        buf = io.BytesIO()
+        im.save(buf, format="PNG")
+        return "image.png", buf.getvalue(), "image/png"
+    except Exception:
+        return filename, file_bytes, "application/octet-stream"
+
+
 def wecom_upload_and_send_media(user_id, media_type, filename, file_bytes):
     tk = get_access_token()
+    fname, data, mime = filename, file_bytes, "application/octet-stream"
+    if media_type == "image":
+        fname, data, mime = _convert_image_for_wecom(file_bytes, filename)
+    elif media_type == "video":
+        mime = "video/mp4"
     up = requests.post(
         f"https://qyapi.weixin.qq.com/cgi-bin/media/upload?access_token={tk}&type={media_type}",
-        files={"media": (filename, file_bytes)},
-        timeout=120,
+        files={"media": (fname, data, mime)},
+        timeout=180,
     ).json()
     media_id = up.get("media_id")
     if not media_id:
         wecom_send_text(user_id, f"媒体上传失败: {up}")
-        return
-    requests.post(
+        return False
+    send_res = requests.post(
         f"https://qyapi.weixin.qq.com/cgi-bin/message/send?access_token={tk}",
         json={
             "touser": user_id,
@@ -111,7 +135,11 @@ def wecom_upload_and_send_media(user_id, media_type, filename, file_bytes):
             media_type: {"media_id": media_id},
         },
         timeout=30,
-    )
+    ).json()
+    if send_res.get("errcode", 0) != 0:
+        wecom_send_text(user_id, f"媒体发送失败: {send_res}")
+        return False
+    return True
 
 
 def normalize_url(u):
@@ -154,7 +182,7 @@ def process_user_text(user_id, text):
             wecom_send_text(user_id, f"生图失败: {e}")
         return
 
-    if text.startswith("/vid") or any(k in text for k in ["生成视频", "做个视频", "拍个视频", "生成一段视频"]):
+    if text.startswith("/vid") or ("视频" in text and any(k in text for k in ["生成", "做个", "拍个", "来个", "一段"])):
         prompt = text[4:].strip() if text.startswith("/vid") else text
         wecom_send_text(user_id, f"已提交生视频任务（{duration}秒/{vid_size}），完成后自动发给你...")
         try:
@@ -165,18 +193,32 @@ def process_user_text(user_id, text):
                 timeout=60,
             ).json()
             tid = task.get("id")
+            if not tid:
+                wecom_send_text(user_id, f"生视频提交异常: {task}")
+                return
             for _ in range(140):
                 time.sleep(5)
                 st = requests.get(f"{MUSE_BASE}/videos/{tid}", headers=headers, timeout=30).json()
                 status = str(st.get("status") or "").lower()
-                if status in ("succeeded", "completed"):
-                    vurl = normalize_url((st.get("result") or {}).get("url") or st.get("url") or st.get("video_url"))
-                    vbytes = requests.get(vurl, timeout=180).content
-                    wecom_upload_and_send_media(user_id, "video", "video.mp4", vbytes)
+                if status in ("succeeded", "completed", "success", "done"):
+                    raw_vurl = (st.get("result") or {}).get("url") or st.get("url") or st.get("video_url") or ""
+                    vurl = normalize_url(raw_vurl) if raw_vurl else ""
+                    if not vurl:
+                        wecom_send_text(user_id, f"视频已完成但未拿到链接: {st}")
+                        return
+                    try:
+                        resp_v = requests.get(vurl, timeout=180)
+                        resp_v.raise_for_status()
+                        ok = wecom_upload_and_send_media(user_id, "video", "video.mp4", resp_v.content)
+                        if not ok:
+                            wecom_send_text(user_id, f"视频直链: {vurl}")
+                    except Exception as ve:
+                        wecom_send_text(user_id, f"视频处理异常: {ve}\n视频直链: {vurl}")
                     return
                 elif status in ("failed", "error"):
                     wecom_send_text(user_id, f"视频生成失败: {st}")
                     return
+            wecom_send_text(user_id, f"视频生成超时（任务ID: {tid}），可稍后再试。")
         except Exception as e:
             wecom_send_text(user_id, f"生视频异常: {e}")
         return
