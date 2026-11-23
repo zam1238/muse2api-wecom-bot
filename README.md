@@ -1,3 +1,5 @@
+![Build](https://img.shields.io/github/actions/workflow/status/zam1238/muse2api-wecom-bot/check.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=Build)
+
 # muse2api-wecom-bot
 
 基于上游接口项目实现的企业微信自建应用机器人，支持在普通微信（通过企业微信插件）中直接对话、生成图片及异步生成视频，内置白名单防滥用与交互式单项参数配置菜单。
