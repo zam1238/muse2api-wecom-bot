@@ -6,6 +6,8 @@ BACKUP_FILE="/root/muse_wecom_backup.conf"
 REPO_DIR="/opt/muse2api-wecom-bot"
 VENV_PIP="/opt/muse_wecom_venv/bin/pip"
 SERVICE_NAME="muse-wecom.service"
+RAW_MAIN="https://raw.githubusercontent.com/zam1238/muse2api-wecom-bot/main"
+API_MAIN="https://api.github.com/repos/zam1238/muse2api-wecom-bot/commits/main"
 
 get_val() {
     local key="$1"
@@ -67,16 +69,25 @@ update_repo() {
     echo "1/4 备份当前配置与白名单..."
     backup_conf
     echo "2/4 从 GitHub 拉取最新代码..."
-    cd "$REPO_DIR"
-    git fetch --all
-    git reset --hard origin/main
+    mkdir -p "$REPO_DIR"
+    if [ -d "$REPO_DIR/.git" ]; then
+        git -C "$REPO_DIR" fetch --all
+        git -C "$REPO_DIR" reset --hard origin/main
+    else
+        SHA=$(curl -fsSL "$API_MAIN" | sed -n 's/.*"sha": *"\([0-9a-f]\{40\}\)\".*/\1/p' | head -n 1 || true)
+        BASE_URL="https://raw.githubusercontent.com/zam1238/muse2api-wecom-bot/${SHA:-main}"
+        curl -fsSL "$BASE_URL/muse_wecom_bot.py" -o "$REPO_DIR/muse_wecom_bot.py"
+        curl -fsSL "$BASE_URL/musewecom.sh" -o "$REPO_DIR/musewecom.sh"
+        curl -fsSL "$BASE_URL/requirements.txt" -o "$REPO_DIR/requirements.txt"
+        curl -fsSL "$BASE_URL/install.sh" -o "$REPO_DIR/install.sh" || true
+    fi
     echo "3/4 安装/更新 Python 依赖..."
     if [ -f "$REPO_DIR/requirements.txt" ] && [ -x "$VENV_PIP" ]; then
         "$VENV_PIP" install -q -r "$REPO_DIR/requirements.txt"
     fi
     if [ -f "$REPO_DIR/musewecom.sh" ]; then
         cp -f "$REPO_DIR/musewecom.sh" /usr/local/bin/musewecom
-        chmod +x /usr/local/bin/musewecom
+        chmod +x /usr/local/bin/musewecom "$REPO_DIR/musewecom.sh"
     fi
     echo "4/4 还原配置与白名单并重启服务..."
     [ -f "$BACKUP_FILE" ] && cp -f "$BACKUP_FILE" "$CONF_FILE"
