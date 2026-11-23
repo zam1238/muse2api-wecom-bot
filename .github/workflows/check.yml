@@ -1,0 +1,21 @@
+name: CI Check
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Check Python syntax
+        run: python -m py_compile muse_wecom_bot.py
+      - name: Check Shell scripts syntax
+        run: bash -n install.sh musewecom.sh
