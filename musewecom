@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+CONF="/etc/muse_wecom.conf"
+SERVICE="muse-wecom.service"
+
+ensure_conf() {
+  if [ ! -f "$CONF" ]; then
+    cat > "$CONF" << 'EOF'
+MUSE_BASE=""
+MUSE_KEY=""
+CORP_ID=""
+AGENT_ID=""
+SECRET=""
+TOKEN=""
+ENCODING_AES_KEY=""
+ALLOWED_USERS=""
+MAX_HISTORY="60"
+LISTEN_PORT="8099"
+EOF
+  fi
+}
+
+get_val() {
+  grep -E "^$1=" "$CONF" 2>/dev/null | head -n1 | cut -d'=' -f2- | sed -e 's/^"//' -e 's/"$//'
+}
+
+set_val() {
+  local key="$1"
+  local val="$2"
+  ensure_conf
+  if grep -qE "^${key}=" "$CONF"; then
+    awk -v k="$key" -v v="$val" 'BEGIN{FS=OFS="="} $1==k{$0=k"=\""v"\""} {print}' "$CONF" > "${CONF}.tmp" && mv "${CONF}.tmp" "$CONF"
+  else
+    echo "${key}=\"${val}\"" >> "$CONF"
+  fi
+}
+
+mask_val() {
+  local v="$1"
+  if [ -z "$v" ]; then
+    echo "未设置"
+  elif [ ${#v} -le 8 ]; then
+    echo "$v"
+  else
+    echo "${v:0:4}****${v: -4}"
+  fi
+}
+
+edit_single_var() {
+  local key="$1"
+  local desc="$2"
+  local cur
+  cur=$(get_val "$key")
+  echo ""
+  echo "当前 ${desc} (${key}) = ${cur:-空}"
+  read -r -p "请输入新的 ${desc} (直接回车保持不变，输入 - 清空): " input
+  if [ "$input" = "-" ]; then
+    set_val "$key" ""
+    echo "已清空 ${key}。"
+  elif [ -n "$input" ]; then
+    set_val "$key" "$input"
+    echo "已保存 ${key}。"
+  else
+    echo "未修改。"
+  fi
+}
+
+sync_from_tg() {
+  local tg_conf="/etc/muse_tg_bot.conf"
+  if [ ! -f "$tg_conf" ]; then
+    echo "未检测到 $tg_conf，无法自动导入。"
+    return
+  fi
+  local b k
+  b=$(grep -E "^MUSE_BASE=" "$tg_conf" | head -n1 | cut -d'=' -f2- | tr -d '"')
+  k=$(grep -E "^MUSE_KEY=" "$tg_conf" | head -n1 | cut -d'=' -f2- | tr -d '"')
+  [ -n "$b" ] && set_val "MUSE_BASE" "$b"
+  [ -n "$k" ] && set_val "MUSE_KEY" "$k"
+  echo "已从 $tg_conf 同步 MUSE_BASE 与 MUSE_KEY！"
+}
+
+ensure_conf
+
+while true; do
+  clear
+  STATUS=$(systemctl is-active "$SERVICE" 2>/dev/null || echo "inactive")
+  echo "=================================================="
+  echo "   Muse2API 企业微信家庭助手 管理菜单 (musewecom)"
+  echo "=================================================="
+  echo "服务状态: $STATUS   配置文件: $CONF"
+  echo "--------------------------------------------------"
+  echo "【单独配置各项变量】"
+  echo "  1. 设置 MUSE_BASE        [$(get_val MUSE_BASE)]"
+  echo "  2. 设置 MUSE_KEY         [$(mask_val "$(get_val MUSE_KEY)")]"
+  echo "  3. 设置 CORP_ID (企业ID) [$(get_val CORP_ID)]"
+  echo "  4. 设置 AGENT_ID         [$(get_val AGENT_ID)]"
+  echo "  5. 设置 SECRET           [$(mask_val "$(get_val SECRET)")]"
+  echo "  6. 设置 TOKEN            [$(mask_val "$(get_val TOKEN)")]"
+  echo "  7. 设置 ENCODING_AES_KEY [$(mask_val "$(get_val ENCODING_AES_KEY)")]"
+  echo "  8. 设置 ALLOWED_USERS    [$(get_val ALLOWED_USERS)]"
+  echo "  9. 设置 MAX_HISTORY      [$(get_val MAX_HISTORY)]"
+  echo " 10. 设置 LISTEN_PORT      [$(get_val LISTEN_PORT)]"
+  echo "--------------------------------------------------"
+  echo "【快捷与服务管理】"
+  echo " 11. 从 TG 机器人配置一键导入 MUSE_BASE / MUSE_KEY"
+  echo " 12. 启动 / 重启服务 (修改配置后点此生效)"
+  echo " 13. 停止服务"
+  echo " 14. 查看实时日志 (按 Ctrl+C 退出日志)"
+  echo "  0. 退出菜单"
+  echo "=================================================="
+  read -r -p "请输入选项编号 [0-14]: " choice
+
+  case "$choice" in
+    1) edit_single_var "MUSE_BASE" "Muse 接口地址 (如 http://127.0.0.1:8000/v1)" ;;
+    2) edit_single_var "MUSE_KEY" "Muse API Key" ;;
+    3) edit_single_var "CORP_ID" "企业微信 CORP_ID (ww开头)" ;;
+    4) edit_single_var "AGENT_ID" "企业微信应用 AGENT_ID (如 1000002)" ;;
+    5) edit_single_var "SECRET" "企业微信应用 SECRET" ;;
+    6) edit_single_var "TOKEN" "回调验证 TOKEN" ;;
+    7) edit_single_var "ENCODING_AES_KEY" "回调加密 ENCODING_AES_KEY" ;;
+    8) edit_single_var "ALLOWED_USERS" "允许访问的用户ID白名单 (英文逗号分隔，留空不限)" ;;
+    9) edit_single_var "MAX_HISTORY" "上下文记忆条数 (默认 60)" ;;
+    10) edit_single_var "LISTEN_PORT" "回调监听端口 (默认 8099)" ;;
+    11) sync_from_tg ;;
+    12)
+      systemctl daemon-reload
+      systemctl restart "$SERVICE"
+      sleep 1
+      systemctl status "$SERVICE" --no-pager -n 8
+      ;;
+    13)
+      systemctl stop "$SERVICE"
+      echo "服务已停止。"
+      ;;
+    14)
+      journalctl -u "$SERVICE" -f -n 30
+      ;;
+    0)
+      exit 0
+      ;;
+    *)
+      echo "无效选项，请重新输入。"
+      ;;
+  esac
+  echo ""
+  read -r -p "按回车键继续..." _
+done
