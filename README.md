@@ -14,8 +14,10 @@ bash <(curl -fsSL https://raw.githubusercontent.com/zam1238/muse2api-wecom-bot/m
 curl -fsSL https://raw.githubusercontent.com/zam1238/muse2api-wecom-bot/main/install.sh -o install.sh && bash install.sh
 ```
 
+
 企业微信入口 https://work.weixin.qq.com/
-注册企业微信 我的团队 获取CORP_ID=团队 ID（形如 `ww...` 开头的字符串）
+
+注册企业微信 我的团队 获取CORP_ID=团队 ID（形如 ww...开头的字符串）
             应用管理-创建应用 获取 AGENT_ID=形如 `1000002
             同上界面下滑-接收消息启用API  获取TOKEN=随机
                                 EncodingAESKey？=随机
