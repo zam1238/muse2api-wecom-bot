@@ -6,7 +6,6 @@ BACKUP_FILE="/root/muse_wecom_backup.conf"
 REPO_DIR="/opt/muse2api-wecom-bot"
 VENV_PIP="/opt/muse_wecom_venv/bin/pip"
 SERVICE_NAME="muse-wecom.service"
-RAW_MAIN="https://raw.githubusercontent.com/zam1238/muse2api-wecom-bot/main"
 API_MAIN="https://api.github.com/repos/zam1238/muse2api-wecom-bot/commits/main"
 
 get_val() {
