@@ -25,6 +25,9 @@ curl -fsSL https://raw.githubusercontent.com/zam1238/muse2api-wecom-bot/main/ins
     5个数值保存记事本  在VPS一键安装 填好1 2 3 4 5 6 7  监听端口8099  在回到网页企业微信 接收消息API URL填https://IP/wecom   下面数值 在记事本保存填上 保存
     在自创的应该下方有个企业可信IP填入vps IPv4的IP（不支持ipv6）
           回到vps快捷命令musewecom 选8 白名单微信 加入
+
+
+          企业微信鸡肋 生成视频大于10M 就只出下载链接
             
 
 | 菜单编号 | 参数名 | 说明与示例 | 获取位置 |
