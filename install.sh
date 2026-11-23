@@ -17,17 +17,19 @@ if [ ! -d "$VENV_DIR" ]; then
 fi
 
 "$VENV_DIR/bin/pip" install --upgrade pip
-"$VENV_DIR/bin/pip" install flask pycryptodome requests
+"$VENV_DIR/bin/pip" install flask pycryptodome requests pillow
 
 echo ">>> 2. 下载或复制程序文件..."
-if [ -f "./muse_wecom_bot.py" ] && [ -f "./musewecom" ]; then
+if [ -f "./muse_wecom_bot.py" ] && [ -f "./musewecom.sh" ]; then
   cp -f ./muse_wecom_bot.py "$APP_DIR/muse_wecom_bot.py"
-  cp -f ./musewecom /usr/local/bin/musewecom
+  cp -f ./musewecom.sh "$APP_DIR/musewecom.sh"
+  cp -f ./musewecom.sh /usr/local/bin/musewecom
 else
   curl -fsSL "$REPO_RAW/muse_wecom_bot.py" -o "$APP_DIR/muse_wecom_bot.py"
-  curl -fsSL "$REPO_RAW/musewecom" -o /usr/local/bin/musewecom
+  curl -fsSL "$REPO_RAW/musewecom.sh" -o "$APP_DIR/musewecom.sh"
+  cp -f "$APP_DIR/musewecom.sh" /usr/local/bin/musewecom
 fi
-chmod +x /usr/local/bin/musewecom
+chmod +x /usr/local/bin/musewecom "$APP_DIR/musewecom.sh"
 
 echo ">>> 3. 初始化配置文件..."
 if [ ! -f "$CONF_FILE" ]; then
